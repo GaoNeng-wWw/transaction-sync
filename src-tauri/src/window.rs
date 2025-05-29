@@ -44,8 +44,8 @@ pub async fn close_select_window(window: Window, handle: tauri::AppHandle) -> Re
         window.scale_factor().unwrap()
     };
     let physical_pos = (
-        pos.x as f64 / scale_factor + 48.0,
-        pos.y as f64 / scale_factor + 40.0,
+        pos.x as f64 / scale_factor + 45.0,
+        pos.y as f64 / scale_factor + 35.0,
     );
     let parts: Vec<&str> = window.label().split('_').collect();
     let label_type = parts[0];
@@ -54,7 +54,7 @@ pub async fn close_select_window(window: Window, handle: tauri::AppHandle) -> Re
     match label_type {
         "left" => {
             // 左侧点击位置
-            let mut positions = LEFT_CLICK_POSITION.lock().unwrap();
+            let mut positions = LEFT_CLICK_POSITION.write().unwrap();
             if index >= positions.len() as i32 {
                 positions.resize(index as usize + 1, (0, 0))
             }
@@ -65,7 +65,7 @@ pub async fn close_select_window(window: Window, handle: tauri::AppHandle) -> Re
         },
         "right" => {
             // 右侧点击位置
-            let mut positions = RIGHT_CLICK_POSITION.lock().unwrap();
+            let mut positions = RIGHT_CLICK_POSITION.write().unwrap();
             if index >= positions.len() as i32 {
                 positions.resize(index as usize + 1, (0, 0))
             }

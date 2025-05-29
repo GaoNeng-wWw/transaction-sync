@@ -9,15 +9,16 @@ use serde::Serialize;
 use serde_json::json;
 use std::cmp::PartialEq;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::RwLock;
 use tauri::{Emitter, WebviewUrl, WebviewWindowBuilder};
 use xcap::image::GenericImageView;
 use xcap::Monitor;
 
 lazy_static! {
-    pub static ref DETECTION_STATE: Mutex<DetectState> = Mutex::new(DetectState::Idle);
-    pub static ref DETECTING: AtomicBool = AtomicBool::new(true);
-    pub static ref DETECT_KEY: Mutex<String> = Mutex::new("".to_string());
+  pub static ref DETECTION_STATE: RwLock<DetectState> = RwLock::new(DetectState::Idle);
+  pub static ref DETECTING: AtomicBool = AtomicBool::new(true);
+  pub static ref DETECT_KEY: RwLock<String> = RwLock::new("".to_string());
+  pub static ref CAN_CLICK: AtomicBool = AtomicBool::new(true);
 }
 
 #[derive(PartialOrd, PartialEq, Copy, Clone, Serialize)]
@@ -51,9 +52,10 @@ pub fn init(app_handle: tauri::AppHandle) {
     // 启动检测线程
     std::thread::spawn(move || {
         loop {
+            if !CAN_CLICK.load(Ordering::Acquire) {
+              continue;
+            }
             if !DETECTING.load(Ordering::Acquire) {
-                // 如果检测状态为false，则跳过处理
-                std::thread::sleep(std::time::Duration::from_millis(100));
                 continue;
             }
 
@@ -115,7 +117,7 @@ pub fn init(app_handle: tauri::AppHandle) {
                     .scale_factor()
                     .unwrap()
             };
-            let mut state = DETECTION_STATE.lock().unwrap();
+            let mut state = DETECTION_STATE.write().unwrap();
 
             // 处理区域1
             let width_1 = (x2_1 - x1_1).abs() * scale_factor as i32;
@@ -158,6 +160,7 @@ pub fn init(app_handle: tauri::AppHandle) {
                     "update-preview-2",
                 )
                 .unwrap();
+
                 if *state == DetectState::Idle && right > 0 {
                     *state = DetectState::RightDetected;
                     click_all_right();
@@ -278,6 +281,10 @@ pub fn capture_screen_region(
 
 #[tauri::command]
 pub fn set_detection_key(key: String) {
-    let mut detect_key = DETECT_KEY.lock().unwrap();
+    let mut detect_key = DETECT_KEY.write().unwrap();
     *detect_key = key;
+}
+#[tauri::command]
+pub fn set_click_state(state: bool){
+  CAN_CLICK.store(state, Ordering::Relaxed)
 }
